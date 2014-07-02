@@ -1,21 +1,21 @@
-import edu.jhu.nlp.wikipedia.InfoBox;
-import edu.jhu.nlp.wikipedia.PageCallbackHandler;
-import edu.jhu.nlp.wikipedia.WikiPage;
-import edu.jhu.nlp.wikipedia.WikiXMLSAXParser;
-
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.*;
 import java.util.Map.Entry;
+
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+import java.util.Map;
+
 
 public class ParseAndIndex implements Serializable {
 
@@ -29,7 +29,9 @@ public class ParseAndIndex implements Serializable {
 	
 	public TreeMap<String, TreeMap<String, FieldValuesForPageId>> mainIndex; 
 	private long pageCount;
-	private final int pageWriteThreshold = 10;
+	private final int pageWriteThreshold = 100;
+	private Porter stemmer = new Porter();
+	StringBuilder sbWriteDataToFile = new StringBuilder();
 	
 	
 	HashSet<String> stopWordSet;
@@ -145,8 +147,8 @@ public class ParseAndIndex implements Serializable {
 	
 	public void createIndexForTitle(String titleText , String pageId)
 	{
-		titleText = titleText.toLowerCase().replaceAll("[,\\.:;&-]", " ");
-		
+		//titleText = titleText.toLowerCase().replaceAll("[,\\.:;&-]", " ");
+		titleText = titleText.toLowerCase();
 		// Remove all Non-Alphabetical Values
 		titleText = titleText.replaceAll("[^a-z]", " ");
 		
@@ -155,8 +157,8 @@ public class ParseAndIndex implements Serializable {
 		//region Indexing for Title 
 		for(String str : tokens)
 		{
-			String key = str.trim();
-			
+			String key = str;
+						
 			if (key.length() <= 2)
 			{
 				//System.err.println("Title Length <= 2 : " + key );
@@ -171,6 +173,12 @@ public class ParseAndIndex implements Serializable {
 			{
 				//key = key.replaceAll("[^a-zA-Z0-9]+","");
 				//key = key.replaceAll("[^a-zA-Z]+","");
+				key = stemmer.stripAffixes(key);
+				if (key.length()<=2)
+				{
+					//System.err.println("StopWord ; " + key );
+					continue;
+				}
 				
 				if (mainIndex.containsKey(key))
 				{
@@ -231,40 +239,8 @@ public class ParseAndIndex implements Serializable {
 	public void createIndexForWikiText(String wikiText , String pageId)
 	{
 		System.out.println("1");	
-		
-		//System.out.println(wikiText);
-		wikiText = PreprocessingTextForIndex.removeInfobox(wikiText).toLowerCase();
-		//System.out.println("================");
-		//System.out.println(wikiText);
 				
 		System.out.println("2");
-		
-		// To Replce All ' " . , : | [ ] ( ) 0-9 % / ? & _ by space 
-		wikiText = wikiText.replaceAll("[\'\"\\.,:\\|\\]\\[\\)\\(0-9%/\\?&_;-]", " ");
-		
-		System.out.println("3");
-		// To Replace All < > &nbsp; &gt; &lt; &amp; * - by space
-		wikiText = wikiText.replace("<", " ").replace(">", " ").replace("nbsp;", " ").replace("gt;", " ").replace("lt;", " ").replace("amp;", " ").replace("*", " ").replace("-", " ");
-		//System.out.println("4");
-		// To Remove Single Line {{...}} occurrences
-		wikiText = wikiText.replaceAll("\\{\\{[^\\}].*\\}\\}", " ");
-		System.out.println("5");
-		// To Remove Multiple Line {{...}} occurrences
-		//wikiText = wikiText.replaceAll("\\{\\{([^\\}].*\n+)*\\}\\}", " ");
-		System.out.println("6");
-		// To convert "something1 = something2" into "something2" only
-		// eg:- last = rhode ;    first = robert t ;    title = a history of warren county  indiana
-		wikiText = wikiText.replaceAll("[ ]*[a-z]*[ ]*[=]", " ");
-		System.out.println("7");
-		// Remove All {{ , }} 
-		wikiText = wikiText.replace("{{", " ").replace("}}", " ");
-		System.out.println("8");
-		// Remove all <ref> , < ref> , <ref > , < ref > occurrences
-		wikiText = wikiText.replaceAll("\\<[ ]*ref[ ]*\\>", " ");
-		System.out.println("9");
-		// Remove ==history== , ==demographics== , ==references== , etc.
-		wikiText = wikiText.replaceAll("[=][=][^=].*[=][=]", " ");
-		System.out.println("10"); 
 		
 		// Remove all Non-Alphabetical Values
 		wikiText = wikiText.replaceAll("[^a-z]", " ");
@@ -276,62 +252,20 @@ public class ParseAndIndex implements Serializable {
 		for (String str : tempWords)
 		{
 			i++;
-			/*
-			if (str.matches("\\{\\{[^\\}]*\\}\\}"))
-			{
-				System.out.println(str + " : Yes");
-			}
-			else if (str.matches(".*[=][=][A-Za-z]*[=][=].*"))
-			{
-				System.out.println(str + " : Yes");
-			}
-			else if (str.matches("^$"))
-			{
-				//System.out.println(str + " : Yes");
-			}
-			*/
-			if (str.matches("^$") || str.length()<=2)
+				
+			if (str.length()<=2)
 			{
 				continue;
 			}
 			else
 			{
-				//str = str.replaceAll("[\'\"\\]\\[\\|,\\.:)(\\}\\{0-9/]", " ");
-				//str = str.replace("<", " ").replace(">", " ").replace("&nbsp;", " ").replace("&gt;", " ").replace("&lt;", " ").replace("&amp;", " ").replace("*", " ").replace("-", " ");
-				//str = str.replaceAll("[^a-zA-Z-]", " ");
-				//str = str.replaceAll("^[-].*", " ");
-				
-						
-						
-				if (str.matches("^[=][=].*") || str.matches(".*[=][=]$"))
-				{
-					// Do not Index after "==references==" point
-					if (str.equalsIgnoreCase("==references=="))
-					{
-						break;
-					}
-					else
-					{
-						// For all other ==history== , ==art and culture== , do not index the title
-						//System.out.println(i+":"+str.trim()+" : Yes");
-						continue;
-					}
-				}
-				else if (str.matches(".*[=][^=].*"))
-				{
-					// Single "=" either just before or just after text then replace it by space. 
-					str=str.replace("=", " ");
-					//System.out.println(i+":"+str.trim()+" : YYes");
-				}
 
-				/*
-				if(str.matches(".*[&][_].*"))
+				// For catching "references"
+				if (str.equalsIgnoreCase("references"))
 				{
-					// Do Not Index terms like &_county , , etc
-					continue;
+					return;
 				}
-				*/
-				
+								
 				// Given entry in the array already splited by white spaces , may still contain internal space
 				// So loop through it and index it
 				
@@ -347,7 +281,14 @@ public class ParseAndIndex implements Serializable {
 						continue;
 					}
 					else
-					{				
+					{
+						key = stemmer.stripAffixes(key);
+						if (key.length()<=2)
+						{
+							//System.err.println("StopWord ; " + key );
+							continue;
+						}
+						
 						if (mainIndex.containsKey(key))
 						{
 							TreeMap<String, FieldValuesForPageId> value = mainIndex.get(key);
@@ -380,8 +321,7 @@ public class ParseAndIndex implements Serializable {
 								//System.err.println("Field Values :- "+fieldValues+"\n");
 								value.put(pageId, fieldValues);
 								mainIndex.put(key,value);
-								//System.err.println(mainIndex.get(key));
-								//System.out.println(key + "Level2");
+
 							}
 						}
 						else
@@ -394,10 +334,7 @@ public class ParseAndIndex implements Serializable {
 							FieldValuesForPageId fieldValues = new FieldValuesForPageId();
 							fieldValues.totalCount = 1;
 							fieldValues.textCount = 1;
-							//fieldValues.textCount = 0;
-							//fieldValues.infoBoxCount = 0;
-							//fieldValues.linksCount = 0;
-							//fieldValues.categoryCount = 0;
+
 							
 							value.put(pageId, fieldValues);
 							mainIndex.put(key, value);
@@ -417,7 +354,8 @@ public class ParseAndIndex implements Serializable {
 	
 	public void createIndexForOutLinks(String outLinkText , String pageId)
 	{	
-		outLinkText = outLinkText.toLowerCase().replaceAll("[,\\.:\\)\\(\\]\\[0-9&;-]", " ");
+		//outLinkText = outLinkText.toLowerCase().replaceAll("[,\\.:\\)\\(\\]\\[0-9&;-]", " ");
+		outLinkText = outLinkText.toLowerCase();
 		
 		// Remove all Non-Alphabetical Values
 		outLinkText = outLinkText.replaceAll("[^a-z]", " ");
@@ -441,6 +379,14 @@ public class ParseAndIndex implements Serializable {
 			}
 			else
 			{
+				
+				key = stemmer.stripAffixes(key);
+				if (key.length()<=2)
+				{
+					//System.err.println("StopWord ; " + key );
+					continue;
+				}
+				
 				//key = key.replaceAll("[^a-zA-Z0-9]+","");
 				//key = key.replaceAll("[^a-zA-Z]+","");
 				
@@ -487,10 +433,6 @@ public class ParseAndIndex implements Serializable {
 					FieldValuesForPageId fieldValues = new FieldValuesForPageId();
 					fieldValues.totalCount = 1;
 					fieldValues.linksCount = 1;
-					//fieldValues.textCount = 0;
-					//fieldValues.infoBoxCount = 0;
-					//fieldValues.linksCount = 0;
-					//fieldValues.categoryCount = 0;
 					
 					value.put(pageId, fieldValues);
 					mainIndex.put(key, value);
@@ -502,7 +444,8 @@ public class ParseAndIndex implements Serializable {
 	
 	public void createIndexForCategories(String categoriesText , String pageId)
 	{	
-		categoriesText = categoriesText.toLowerCase().replaceAll("[,\\.:\\)\\(\\]\\[0-9&;-]", " ");
+		//categoriesText = categoriesText.toLowerCase().replaceAll("[,\\.:\\)\\(\\]\\[0-9&;-]", " ");
+		categoriesText = categoriesText.toLowerCase();
 		
 		// Remove all Non-Alphabetical Values
 		categoriesText = categoriesText.replaceAll("[^a-z]", " ");
@@ -513,7 +456,7 @@ public class ParseAndIndex implements Serializable {
 		for(String str : tokens)
 		{
 			String key = str.trim();
-			
+		
 			if (key.length() <= 2)
 			{
 				//System.err.println("Categories Length <= 2 : " + key );
@@ -528,6 +471,14 @@ public class ParseAndIndex implements Serializable {
 			{
 				//key = key.replaceAll("[^a-zA-Z0-9]+","");
 				//key = key.replaceAll("[^a-zA-Z]+","");
+			
+				
+				key = stemmer.stripAffixes(key);
+				if (key.length()<=2)
+				{
+					//System.err.println("StopWord ; " + key );
+					continue;
+				}
 				
 				if (mainIndex.containsKey(key))
 				{
@@ -590,7 +541,7 @@ public class ParseAndIndex implements Serializable {
 	{	
 		// Remove { } [ ] , _ . 0-9 : ; / ' " -
 		infoboxText = infoboxText.toLowerCase().replaceAll("[\'\"\\}\\{\\]\\[\\._0-9,:;/\\)\\(&-]", " ");
-
+				
 		// Split by "\\|" into "key=value" pair and some other key words
 		// eg:- |monitored by = American Standard Institute | ASI
 		//      |size		=
@@ -610,6 +561,7 @@ public class ParseAndIndex implements Serializable {
 			
 			for (String key : temp)
 			{
+
 				if (key.length() <= 2)
 				{
 					//System.err.println("InfoBox Length <= 2 : " + key );
@@ -624,6 +576,14 @@ public class ParseAndIndex implements Serializable {
 				{
 					//key = key.replaceAll("[^a-zA-Z0-9]+","");
 					//key = key.replaceAll("[^a-zA-Z]+","");
+					
+					
+					key = stemmer.stripAffixes(key);
+					if (key.length()<=2)
+					{
+						//System.err.println("StopWord ; " + key );
+						continue;
+					}
 					
 					if (mainIndex.containsKey(key))
 					{
@@ -686,67 +646,288 @@ public class ParseAndIndex implements Serializable {
 	
 	public void createIndex()
 	{
+	
 		try {
-			
-			WikiXMLSAXParser.parseWikipediaDump(this.wikiFilePath, new PageCallbackHandler() {
-				
-				@Override
-				public void process(WikiPage page) 
-				{
-					// TODO Auto-generated method stub
-					String pageId = page.getID();
-					String titleText = page.getTitle();
-					String wikiText = page.getText();
-					String outLinkText = page.getLinks().toString();
-					String categoriesText = page.getCategories().toString();
-					InfoBox infoBox = page.getInfoBox();
-					String infoboxText;
-					
-					if (infoBox==null)
-					{
-						infoboxText = "";
-					}
-					else
-					{
-						infoboxText = infoBox.dumpRaw();
-					}
-					
-					
-					/*
-					System.out.println("\n\n----- Page Id ------");					 
-					System.out.println(page.getID());
-					System.out.println("\n----- Page Title ------");					 
-					System.out.println(page.getTitle());
-					System.out.println("----- Page Text ------");
-					System.out.println(page.getText());
-					System.out.println("----- Wiki Text ------");
-					System.out.println(page.getWikiText());
-					System.out.println("----- Page InfoBox ------");
-					System.out.println(infoboxText);
-					System.out.println("\n\n----- Page Links ------\n");
-					System.out.println(page.getLinks());
-					System.out.println("----- Page Categories ------");
-					System.out.println(page.getCategories());
-					*/
-					
-					// Indexing Each Part separately
-					System.out.println("In Title");
+	    	 
+	    	SAXParserFactory factory = SAXParserFactory.newInstance();
+	    	SAXParser saxParser = factory.newSAXParser();
+	    	
+	    	DefaultHandler handler = new DefaultHandler() {
+
+	    		boolean titleStatus = false;
+		    	boolean idStatus = false;
+		    	boolean idFlag = false;
+		    	boolean textStatus = false;
+		    	
+		    	StringBuilder sbTitle = new StringBuilder();
+		    	StringBuilder sbId = new StringBuilder();
+		    	StringBuilder sbWikiText = new StringBuilder();	    	
+		    	StringBuilder sbInfoText = new StringBuilder();
+		    	StringBuilder sbOutLink = new StringBuilder();
+		    	StringBuilder sbCategory = new StringBuilder();
+		    	
+		    	
+				String pageId = "";
+				String titleText = "";
+				String wikiText = "";
+				String outLinkText = "";
+				String categoriesText = "";
+				String infoboxText = "";
+	    		
+	    	public void startElement(String uri, String localName,String tag, Attributes attributes) throws SAXException 
+	        {
+	    		
+	    		//System.out.println("Start Element :" + tag);
+	     
+	    		if (tag.equalsIgnoreCase("title")) {
+	    			titleStatus = true;
+	    			idFlag = true;
+	    		}
+	    		else if (tag.equalsIgnoreCase("id")) {
+	    			idStatus = true;
+	    		}
+	    		else if (tag.equalsIgnoreCase("text")) {
+	    			textStatus = true;
+	    		}	
+	     
+	    	}
+	     
+	    	
+	    	public void endElement(String uri, String localName,
+	    		String qName) throws SAXException {
+	     
+	    		//System.out.println("End Element :" + qName);
+	    		if (titleStatus) {
+	    			titleStatus = false;
+	    			
+	    			titleText = sbTitle.toString().replace("\n", " ").trim().toLowerCase();
+	    			//System.out.println(titleText);
+	    			
+	    			sbTitle.setLength(0);
+	    		}
+	    		else if (idFlag && idStatus) 
+	    		{
+	    			idStatus = false;
+	    			idFlag = false;
+
+	    			pageId= sbId.toString().replace("\n", " ").trim().toLowerCase();
+	    			//System.out.println(pageId);
+	    			
+	    			sbId.setLength(0);
+	    		}	    		
+	    		else if (textStatus)
+	    		{
+	    			textStatus = false;
+
+	    			String tempStr = sbWikiText.toString().trim().replace("\n", " ").toLowerCase();
+	    			//System.out.println(tempStr);	    
+	    			
+	    			// Read InfoBoxText and OutLinksText also... 
+	    			int counter = 0 , openBraceCount = 0 , squareBracketCount = 0 ;
+	    			boolean skipForTag = false , readLink=false;
+	    			
+	    			for (char c : tempStr.toCharArray())
+	    			{
+	    				counter++;
+	    				
+	    				if (c=='{')
+	    				{
+	    					openBraceCount++;
+	    				}
+	    				else if (c=='}')
+	    				{
+	    					openBraceCount--;
+	    				}
+	    				else if (c=='<')
+	    				{
+	    					skipForTag = true;
+	    				}
+	    				else if (c=='>')
+	    				{
+	    					skipForTag = false;
+	    				}
+	    				else if (c=='[')
+	    				{
+	    					squareBracketCount++;
+	    					
+	    					if(squareBracketCount==2)
+		    				{
+		    					readLink=true;
+		    				}
+	    				}
+	    				else if (c==']')
+	    				{
+	    					squareBracketCount--;
+	    					
+	    					if(squareBracketCount==0)
+		    				{
+		    					readLink=false;
+		    					sbOutLink.append(" ");
+		    				}
+	    				}
+	    				else if (readLink)
+	    				{
+	    					sbOutLink.append(c);
+	    				}
+	    				else if (!skipForTag && !readLink)
+	    				{
+	    					sbInfoText.append(c);
+	    				}
+	    				
+	    				//Should be Independent-If , as string always starts with "{{infobox..."
+	    				if (openBraceCount==0)
+	    				{
+	    					break;
+	    				}
+	    			}
+	    			
+	    			infoboxText = sbInfoText.toString();
+	    			sbInfoText.setLength(0);
+	    			//System.out.println("InfoboxText :: "+infoboxText);
+	    			
+	    			openBraceCount = 0 ; 
+	    			squareBracketCount = 0 ;
+	    			skipForTag = false ;
+	    			readLink=false;
+	    			
+	    			boolean skipForBrace = false;
+	    			char c = ' ';
+	    			
+	    			// To Work on Remaining Part (After Removal of InfoBox Part)
+	    			sbWikiText.setLength(0);
+	    			
+	    			StringBuilder sbCheckForReferences = new StringBuilder();
+	    			
+	    			// Read Elements for WikiText, OutlinkText  and skip {{...}} , <...>
+	    			for (int i = counter ; i < tempStr.length() ; i++)
+	    			{
+	    				c = tempStr.charAt(i);
+	    				counter++;
+	    				
+	    				if (c=='{')
+	    				{
+	    					openBraceCount++;
+	    					skipForBrace = true;
+	    				}
+	    				else if (c=='}')
+	    				{
+	    					openBraceCount--;
+	    					
+	    					if (openBraceCount==0)
+	    					{
+	    						skipForBrace=false;
+	    					}
+	    				}
+	    				else if (c=='<')
+	    				{
+	    					skipForTag = true;
+	    				}
+	    				else if (c=='>')
+	    				{
+	    					skipForTag = false;
+	    						    					
+	    					if(sbCheckForReferences.toString().replace("/", " ").trim().equalsIgnoreCase("references"))
+	    					{
+	    						break;
+	    					}
+	    					sbCheckForReferences.setLength(0);
+	    				}
+	    				else if (c=='[')
+	    				{
+	    					squareBracketCount++;
+	    					
+	    					if(squareBracketCount==2)
+		    				{
+		    					readLink=true;
+		    				}
+	    				}
+	    				else if (c==']')
+	    				{
+	    					squareBracketCount--;
+	    					readLink=false;
+	    					
+	    					if(squareBracketCount==0)
+		    				{
+		    					sbOutLink.append(" ");
+		    				}
+	    				}
+	    				else if (readLink)
+	    				{
+	    					sbOutLink.append(c);
+	    				}
+	    				else if (!skipForTag && !skipForBrace && !readLink)
+	    				{
+	    					sbWikiText.append(c);
+	    				}
+	    				else if (skipForTag)
+	    				{
+	    					sbCheckForReferences.append(c);
+	    				}
+	    					
+	    			}
+	    			
+	    			outLinkText = sbOutLink.toString();
+	    			wikiText = sbWikiText.toString();
+	    			
+	    			sbOutLink.setLength(0);
+	    			sbWikiText.setLength(0);
+	    			
+	    			//System.out.println("WikiText :: "+wikiText);
+	    			//System.out.println("OutLink :: "+outLinkText);
+	    			
+	    			
+	    			// For Finding Out the Category
+	    			tempStr = tempStr.substring(counter);
+	    			//infoboxText = tempStr.
+	    			//System.out.println("Printing Rest :: " + tempStr);
+	    			String lastString = "";
+	    			
+	    			for(String str : tempStr.split(":|\\[\\[|\\]\\]"))
+	    			{
+	    				if (lastString.equalsIgnoreCase("category"))
+	    				{
+	    					sbCategory.append(str + " ");
+	    				}
+	    				
+	    				lastString = str;
+
+	    			}
+	    			
+	    			categoriesText = sbCategory.toString();
+	    			//System.out.println("Category :: " + categoriesText);
+	    			
+	    			sbCategory.setLength(0);
+	    			
+	    			
+	    			// Indexing Each Part separately
+					//System.out.println("======In Title");
+					//System.out.println(titleText);
 					createIndexForTitle(titleText,pageId);
-					System.out.println("In Text");
+					
+					//System.out.println("======In Text");
+					//System.out.println(wikiText);
 					createIndexForWikiText(wikiText,pageId);
-					System.out.println("In OutLink");
+					
+					//System.out.println("======In OutLink");
+					//System.out.println(outLinkText);
 					createIndexForOutLinks(outLinkText,pageId);
-					System.out.println("In Categories");
+					
+					//System.out.println("======In Categories");
+					//System.out.println(categoriesText);
 					createIndexForCategories(categoriesText,pageId);
-					System.out.println("In Infobox");
+					
+					//System.out.println("======In Infobox");
+					//System.out.println(infoboxText);
 					createIndexForInfobox(infoboxText,pageId);
-					
-					
+	    			
+	    			
+					// Writing Index to File
 					ParseAndIndex.this.pageCount++;
 					
 					
 					if (ParseAndIndex.this.pageCount%ParseAndIndex.this.pageWriteThreshold == 0)
 					{
+						
 						System.out.println("-------Dumping Files-------");
 						
 						// Write to files (Sorted Index of Multiple Pages) on Disk
@@ -768,7 +949,7 @@ public class ParseAndIndex implements Serializable {
 						    	Map.Entry<String, TreeMap<String, FieldValuesForPageId>> mainTreeInstance = (Map.Entry<String, TreeMap<String, FieldValuesForPageId>>)iter.next();
 						    	
 						    	String token = mainTreeInstance.getKey();
-						    	fileWriter.write(token);
+						    	sbWriteDataToFile.append(token);
 						    	
 						    	Set<Entry<String, FieldValuesForPageId>> subset = mainTreeInstance.getValue().entrySet();
 							    // Get an iterator
@@ -779,11 +960,14 @@ public class ParseAndIndex implements Serializable {
 							    	//System.out.print(subTreeInstance.getKey() + " : ");
 							    	//System.out.print(subTreeInstance.getValue());
 							    	//System.out.print(" ; ");
-							    	fileWriter.write(","+subTreeInstance.getKey()+","+subTreeInstance.getValue());
+							    	sbWriteDataToFile.append(","+subTreeInstance.getKey()+","+subTreeInstance.getValue());
 							    }
-							    fileWriter.write(endOfLine);
+							    
+							    sbWriteDataToFile.append(endOfLine);
 						    }
 						    
+						    fileWriter.write(sbWriteDataToFile.toString());
+						    sbWriteDataToFile.setLength(0);
 						    //mainIndex = new TreeMap<String, TreeMap<String,FieldValuesForPageId>>();
 						    mainIndex.clear();
 						    
@@ -808,19 +992,106 @@ public class ParseAndIndex implements Serializable {
 					    
 						
 					}
-					
-				}
-			});
-			
-			
-		} 
-		catch (Exception e) 
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	    			
+	    			
+	    			
+	    		}
+	     
+	    	}
+	     
+	    	
+	    	
+	    	public void characters(char ch[], int start, int length) throws SAXException {
+	     
+	    		if (titleStatus) {
+	    			//System.out.println("Title : " + new String(ch, start, length));
+	    			sbTitle.append(new String(ch, start, length));
+	    		}
+	    		else if (idStatus && idFlag) 
+	    		{
+	    			//System.out.println("Id : " + new String(ch, start, length));
+	    			sbId.append(new String(ch, start, length));
+	    		}	    		
+	    		else if (textStatus) 
+	    		{
+	    			//System.out.println("Text : " + new String(ch, start, length));
+	    			sbWikiText.append(new String(ch, start, length));
+	    		}
+	    	}
+	     
+	         };
+	         
+	           saxParser.parse(Start.wikiXMLFilePath, handler);
+	         //saxParser.parse(new InputSource(new StringReader("Input/1page.xml")), handler);
+	     
+	         } catch (Exception e) {
+	           e.printStackTrace();
+	         }
+	     
+	    
+		// For Writing the Index of Last Iteration
+		FileWriter fileWriter = null ;
 				
+	    try 
+	    {
+	    	// Writing files in Plain Text
+	    	fileWriter = new FileWriter(outputFolderPath+"//"+outputFileName+(pageCount/pageWriteThreshold + 1)+outputFileExtension);
+			    	
+	    	
+	    	Set<Entry<String, TreeMap<String, FieldValuesForPageId>>> set = mainIndex.entrySet();
+		    // Get an iterator
+		    Iterator<Entry<String, TreeMap<String, FieldValuesForPageId>>> iter = set.iterator();
+		    // Display elements
+			    
+		    while(iter.hasNext()) {
+		    	Map.Entry<String, TreeMap<String, FieldValuesForPageId>> mainTreeInstance = (Map.Entry<String, TreeMap<String, FieldValuesForPageId>>)iter.next();
+				    	
+		    	String token = mainTreeInstance.getKey();
+		    	sbWriteDataToFile.append(token);
+		    	
+		    	Set<Entry<String, FieldValuesForPageId>> subset = mainTreeInstance.getValue().entrySet();
+			    // Get an iterator
+			    Iterator<Entry<String, FieldValuesForPageId>> subIter = subset.iterator();
+			    							    
+			    while(subIter.hasNext()) {
+			    	Map.Entry<String, FieldValuesForPageId> subTreeInstance = (Map.Entry<String, FieldValuesForPageId>)subIter.next();
+			    	//System.out.print(subTreeInstance.getKey() + " : ");
+			    	//System.out.print(subTreeInstance.getValue());
+			    	//System.out.print(" ; ");
+			    	sbWriteDataToFile.append(","+subTreeInstance.getKey()+","+subTreeInstance.getValue());
+			    }
 
+			    sbWriteDataToFile.append(endOfLine);
+				
+		    }
+				    
+		    fileWriter.write(sbWriteDataToFile.toString());
+		    sbWriteDataToFile.setLength(0);
+			//mainIndex = new TreeMap<String, TreeMap<String,FieldValuesForPageId>>();
+			 mainIndex.clear();
+				    
+		} 
+		catch (FileNotFoundException e) 
+		{
+		  	e.printStackTrace();
+		} 
+		catch (IOException e) 
+		{
+		   	e.printStackTrace();
+		}
+		finally
+		{
+		  	try 
+		  	{
+		  		fileWriter.close();
+			} 
+		  	catch (IOException e) 
+		  	{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 	}
 	
 	

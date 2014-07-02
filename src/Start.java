@@ -1,3 +1,7 @@
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import edu.jhu.nlp.wikipedia.*;
 
 /**
@@ -88,7 +92,23 @@ public class Start {
         */
 		
 		ParseAndIndex pai = new ParseAndIndex(wikiXMLFilePath);
+		
+		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+		
+			
+		long startIndexTime = System.currentTimeMillis();
+		Date startIndexDate = new Date();
+		
 		pai.createIndex();
+		
+		Date finishIndexDate = new Date();
+		long estimatedIndexTime = System.currentTimeMillis() - startIndexTime;
+		
+		System.out.println("===========Details============\n");
+		System.out.println("Start Time :- "+dateFormat.format(startIndexDate));
+		System.out.println("Finish Time :- "+dateFormat.format(finishIndexDate));
+		System.out.println("Estimated Time :- "+estimatedIndexTime);
+		
 		//pai.mergeIndexFiles();
 		//pai.displayIndex();
 		

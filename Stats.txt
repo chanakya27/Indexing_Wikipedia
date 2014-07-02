@@ -1,0 +1,76 @@
+===========
+With Porter
+===========
+
+Method1 (Porters Check Outside)
+-------
+
+Start Time :- 19:53:27
+Finish Time :- 20:26:39
+Estimated Time :- 1992659 (millisec)
+
+Min - 33.21
+
+Size - 31.0 MB
+Input - 104.9 MB 
+Files - 130 (100 page/file)
+
+
+
+Method2 (Porters Check Inside)
+-------
+
+Start Time :- 20:38:35
+Finish Time :- 21:11:46
+Estimated Time :- 1990779 (millisec)
+
+Min - 33.18
+
+Size - 29.8 MB
+Input - 104.9 MB 
+Files - 130 (100 page/file)
+
+
+
+Method3 (Checking for references and stoping)
+-------
+Start Time :- 21:17:38
+Finish Time :- 21:50:06
+Estimated Time :- 1947464
+
+Min - 32.46
+
+Size - 29.3 MB
+Input - 104.9 MB 
+Files - 130 (100 page/file)
+
+
+
+Method4 (Without Porter and checking for Infobox in WikiText by inline code)
+-------
+Start Time :- 22:19:07
+Finish Time :- 22:51:59
+Estimated Time :- 1971897
+
+Min - 32.8
+
+Size - 39.2 MB
+Input - 104.9 MB 
+Files - 130 (100 page/file)
+
+
+
+Method5 (Whole New Parser)
+--------
+for small.xml
+2407 ms
+
+Start Time :- 05:46:52
+Finish Time :- 05:47:50
+Estimated Time :- 58503
+
+Min - 58sec
+
+Size - 36 MB
+Input - 104.9 MB 
+Files - 130 (100 page/file)
