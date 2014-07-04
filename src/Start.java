@@ -10,7 +10,8 @@ import edu.jhu.nlp.wikipedia.*;
  */
 public class Start {
 
-	static final String wikiXMLFilePath = "Input/sample.xml";
+	static final String wikiXMLFilePath = "/home/user/Desktop/Remaining_Part_Full_Crawl.xml";
+			//"/home/user/Desktop/enwiki-20140502-pages-articles-multistream.xml";
 	
 	/**
 	 * Constructor
@@ -23,74 +24,6 @@ public class Start {
 	 */
 	public static void main(String[] args) {
 
-		//System.out.println(" 0 - "+args[0]);
-		//System.out.println(" 1 - "+args[1]);
-		
-		
-		/* To parse Complete document in One G0
-        try {
-			WikiXMLSAXParser.parseWikipediaDump("/home/ravi/Sample/sample.xml", new PageCallbackHandler() {
-				
-				@Override
-				public void process(WikiPage page) {
-					// TODO Auto-generated method stub
-					System.out.println(page.getTitle());
-					return;
-				}
-			});
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}  
-		*/
-		
-		
-		/*
-		 *  Same thing as above
-		 */
-		/*
-		WikiXMLParser wxsp = WikiXMLParserFactory.getSAXParser("/home/ravi/Sample/sample.xml");
-		try {
-            
-            wxsp.setPageCallback(new PageCallbackHandler() { 
-                           public void process(WikiPage page) {
-                                  System.out.println(page.getTitle());
-                           }
-            });
-                
-           wxsp.parse();
-        }catch(Exception e) {
-                e.printStackTrace();
-        }
-        
-        */
-		
-		/*
-		 * For step wise Parsing :: It did not work
-		 */
-		/*
-		WikiXMLParser wxsp = WikiXMLParserFactory.getSAXParser("/home/ravi/Sample/sample.xml");
-		int i=0;
-		try {
-			WikiPageIterator wpi = wxsp.getIterator();
-			
-			while (wpi.hasMorePages()==true)
-			{
-				System.out.println(wpi.nextPage().getTitle());
-				
-				if (i==10)
-				{
-					break;
-				}
-				i++;
-			}
-			
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-        */
-		
 		ParseAndIndex pai = new ParseAndIndex(wikiXMLFilePath);
 		
 		DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
@@ -98,8 +31,12 @@ public class Start {
 			
 		long startIndexTime = System.currentTimeMillis();
 		Date startIndexDate = new Date();
+
+		//pai.tester();
 		
-		pai.createIndex();
+		pai.mergeIndexFiles();
+		
+		//pai.displayIndex();
 		
 		Date finishIndexDate = new Date();
 		long estimatedIndexTime = System.currentTimeMillis() - startIndexTime;
@@ -109,8 +46,7 @@ public class Start {
 		System.out.println("Finish Time :- "+dateFormat.format(finishIndexDate));
 		System.out.println("Estimated Time :- "+estimatedIndexTime);
 		
-		//pai.mergeIndexFiles();
-		//pai.displayIndex();
+
 		
 	}
 
